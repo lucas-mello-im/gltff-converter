@@ -76,7 +76,8 @@ def compare_json():
             main_scene_name = main_json['scenes'][0]['name']
 
             if gltf_file['scenes'][0]['name'] != main_scene_name:
-                for node in
+                print(gltf_file['meshes'])
+
 
 def dumps_json_dict():
     node_list = get_node_type_list(get_gltf_file())
