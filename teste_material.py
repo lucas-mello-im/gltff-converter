@@ -34,9 +34,18 @@ def get_texture_dict(dict):
 def set_material_textures(node_type_list, dict):
     texture_dict = get_texture_dict(dict)
     to_delete_list = ['accessors', 'buffers', 'bufferViews', 'nodes', 'samplers']
-
+    texture_dict_ = create_material_dict(dict)
     for object_to_delete in to_delete_list:
         dict.pop(object_to_delete)
+
+    # Muda o index pelo nome dos materiais
+    for asset in dict['meshes']:
+        for node in asset['primitives']:
+            for material in texture_dict_['materials']:
+                if material['materialIndex'] == node['material']:
+                    node['material'] = material['name']
+
+    # Muda o index pelo nome das texturas
     for node_type in node_type_list:
         for material in dict['materials']:
             node_list = []
@@ -57,6 +66,14 @@ def set_material_textures(node_type_list, dict):
     return dict
 
 
+def create_material_dict(dict):
+    material_dict = {'materials': []}
+    for index, node in enumerate(dict['materials']):
+        node['materialIndex'] = index
+        material_dict['materials'].append(node)
+    return material_dict
+
+
 def get_node_type_list(dict):
     node_list = []
     if dict['materials']:
@@ -69,14 +86,36 @@ def get_node_type_list(dict):
 
 def compare_json():
     main_json = set_material_textures(get_node_type_list(get_gltf_file()), get_gltf_file())
+    main_scene_name = main_json['scenes'][0]['name']
+    main_scene_assets = {}
+    main_material_name_list = []
+
+    teste_num_mat = str(len(main_json['materials']))
+
+    for asset in main_json['meshes']:
+        main_scene_assets[asset['name']] = asset['primitives'][0]['material']
+
+    for material_name in main_json['materials']:
+        main_material_name_list.append(material_name['name'])
+
     for file in get_gltf_file_list():
         with open(file, 'r') as gltf_file:
             gltf_to_dict = json.loads(gltf_file.read())
             gltf_file = set_material_textures(get_node_type_list(gltf_to_dict), gltf_to_dict)
-            main_scene_name = main_json['scenes'][0]['name']
 
+            # Adiciona a variação de material ao Mesh
             if gltf_file['scenes'][0]['name'] != main_scene_name:
-                print(gltf_file['meshes'])
+                for node in gltf_file['meshes']:
+                    if node['name'] in main_scene_assets.keys():
+                        if node['primitives'][0]['material'] != main_scene_assets[node['name']]:
+                            for asset_node in main_json['meshes']:
+                                if node['name'] == asset_node['name']:
+                                    asset_node['primitives'][0]['materia2'] = node['primitives'][0]['material']
+
+            # Adiciona os novos materiais ao json principal
+            for material in gltf_file['materials']:
+                if material['name'] not in main_material_name_list:
+                    main_json['materials'].append(material)
 
 
 def dumps_json_dict():
@@ -100,16 +139,16 @@ def config_initial_scene():
 
     # Change Apect Ratio
     rt.rendLockImageAspectRatio = True
-    rt.renderWidth = 1280
+    rt.renderWidth = 500
     rt.rendImageAspectRatio = 1
 
 
 def create_environment():
     hdri_sky = rt.CoronaSky(cloudsEnable=True, intensityMultiplier=0.1)
-    IMXR_sun = rt.CoronaSun(name="IMXRSun", on=True, targeted=True, sizeMultiplier=2, intensity=0.2, shadowsFromClouds=True, textured=True)
-    IMXR_sun.position = rt.Point3(500, 500, 500)
-    sun_target = rt.getNodeByName('IMXRSun.target')
-    sun_target.pos = rt.Point3(0, 0, 0)
+    rt.environmentMap = hdri_sky
+    IMXR_sun = rt.CoronaSun(name="IMXRSun", on=True, sizeMultiplier=7, intensity=0.05, shadowsFromClouds=True, textured=True)
+    IMXR_sun.targeted = True
+    IMXR_sun.pos = rt.Point3(900, 900, 500)
 
 
 def import_fbx():
@@ -161,6 +200,24 @@ def create_cameras():
             camera.enableClipping = True
             camera.clippingNear = 20
 
+
+def create_lights():
+    for obj in rt.objects:
+        if rt.classOf(obj) == rt.freeSpot:
+            # Get old light parameters
+            new_light_position = obj.position
+            new_light_intensity = obj.multiplier
+            new_light_color = obj.rgb
+
+            # Create New Light
+            new_light = rt.CoronaLight(on=True, shape=0, color=new_light_color, intensity=new_light_intensity * 100, width=0.5)
+            new_light.position = new_light_position
+
+            # Delete Old Light
+            rt.delete(obj)
+
+        elif rt.classOf(obj) == rt.Directionallight:
+            rt.delete(obj)
 
 def copy_uv_channel(obj, channel_from, channel_to):
     rt.convertToPoly(obj)
@@ -236,7 +293,8 @@ def create_material():
             normal_map_texture = rt.Bitmaptexture(fileName=normal_map_texture_path)
             normal_node = rt.CoronaNormal(normalMap=normal_map_texture)
             normal_node.multiplier = 1
-            material_node.baseBumpTexmap = normal_node
+            round_edges_node = rt.CoronaRoundEdges(mapAdditionalBump=normal_node, radius=0.02)
+            material_node.baseBumpTexmap = round_edges_node
 
             # UV ID Setting
             if 'texCoord' in mtl['normalTexture']:
@@ -265,7 +323,6 @@ def create_material():
                     obj.material = material_node
                     if is_vertex_color:
                         copy_uv_channel(obj, 2, 1)
-                        break
 
 
         print(mtl['name'])
@@ -273,12 +330,23 @@ def create_material():
         print('---------------------')
 
 
+def render_structure():
+    for obj in rt.objects:
+        if 'BD2_CH2' not in obj.name:
+            if rt.classOf(obj) == rt.Editable_mesh or rt.classOf(obj) == rt.Editable_Poly:
+                rt.hide(obj)
+
+
+
 if __name__ == '__main__':
-    #config_initial_scene()
-    #import_fbx()
-    #json_file = json.loads(dumps_json_dict())
-    #create_cameras()
-    ##create_environment()
-    #delete_dummy_nodes()
-    #create_material()
+    config_initial_scene()
+    import_fbx()
+    json_file = json.loads(dumps_json_dict())
+    create_cameras()
+    create_lights()
+    create_environment()
     compare_json()
+    delete_dummy_nodes()
+    create_material()
+    #render_structure()
+

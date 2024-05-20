@@ -118,7 +118,7 @@ def compare_json():
 
             #print(f"Objeto: {node['name']}\nMaterial 1: {node['primitives'][0]['material']}\nMaterial 2: {main_scene_assets[node['name']]}\n-------------------------")
     #print(f'Numero de materiais antes: {teste_num_mat}\nNumero de materiais depois: {str(len(main_json['materials']))}')
-    #print(main_json)
+    print(main_json)
 
 
 compare_json()
