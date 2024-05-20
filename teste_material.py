@@ -348,5 +348,5 @@ if __name__ == '__main__':
     compare_json()
     delete_dummy_nodes()
     create_material()
-    #render_structure()
+    render_structure()
 
