@@ -3,7 +3,7 @@ from pymxs import runtime as rt
 import json
 
 
-fbxFilePath = r"C:\Users\lucas.ferreira\Downloads\GLTF\S_BD2_CH2_L01_01_B.fbx"
+fbxFilePath = r"C:\Users\lucas.ferreira\Downloads\Lucas\S_BD2_CH2_L01_01_A.fbx"
 folder_path = r"C:\Users\lucas.ferreira\Downloads\Lucas"
 json_file_path = r"D:/temp/teste.json"
 
@@ -165,7 +165,7 @@ def delete_dummy_nodes():
     to_delete = []
     for node in rt.objects:
         # Cria uma lista com os nodes a serem excluídos
-        if rt.classOf(node) == rt.Dummy:
+        if rt.classOf(node) == rt.Dummy or rt.classOf(node) == rt.Freecamera:
             to_delete.append(node)
     # Itera na lista e exclui os nodes selecionados
     for delete_node in to_delete:
@@ -245,30 +245,33 @@ def copy_uv_channel(obj, channel_from, channel_to):
     for face in range(1, num_map_faces_to + 1):
         rt.polyop.setMapFace(obj, channel_to, face, rt.polyop.getMapFace(obj, channel_from, face))
 
-    print(f"UV mudada para ID 1 para o objeto {obj.name}")
-
 
 def add_multi_mtl_mod(object_node):
     mtl_id_mod = rt.materialModifier(materialID=1, name='IMxr MtlID Modifier')
     rt.addModifier(object_node, mtl_id_mod)
 
 
-def get_material_name_list(obj_node_name):
+def get_material_name_list(obj_node):
     material_name_list = []
     for node in json_file['meshes']:
-        if node['name'] == obj_node_name:
-            for material in node['primitives'][0]['material']:
-                material_name_list.append(material)
+        if node['name'] == obj_node.name:
+            if isinstance(node['primitives'][0]['material'], str):
+                material_name_list.append(node['primitives'][0]['material'])
+            else:
+                for material in node['primitives'][0]['material']:
+                    material_name_list.append(material)
+    print(material_name_list)
     return material_name_list
 
 
 def create_material(obj_node):
     material_node = None
-    material_name_list = get_material_name_list(obj_node.name)
-    material_id_list = []
+    material_name_list = get_material_name_list(obj_node)
     is_vertex_color = False
+    material_id_list = []
 
     for mtl in json_file['materials']:
+
         if mtl['name'] in material_name_list:
             material_node = rt.CoronaPhysicalMtl()
             material_node.name = mtl['name']
@@ -337,26 +340,29 @@ def create_material(obj_node):
             if 'emissiveFactor' in mtl:
                 material_node.selfIllumLevel = mtl['emissiveFactor'][0]
 
-            material_id_list.append(material_node)
-
             if is_vertex_color:
                 copy_uv_channel(obj_node, 2, 1)
+            material_id_list.append(material_node)
 
-    if len(material_name_list) > 1:
-        return rt.multiSubMaterial(materialList=material_id_list)
-    else:
-        return material_id_list[0]
+    if material_id_list:
+        if len(material_name_list) > 1:
+            add_multi_mtl_mod(obj_node)
+            obj_node.material = rt.multiSubMaterial(materialList=material_id_list)
+
+            print('Material aplicado para: ' + material_node.name)
+        else:
+            obj_node.material = material_id_list[0]
+            print('Material aplicado para: ' + material_node.name)
 
 
 def apply_all_materials():
-    rt.clearListener()
-    for obj in rt.objects:
-        for mesh in json_file['meshes']:
-            if mesh['name'] == obj.name:
-                print(obj.name)
-        #    if 'Glass' in obj.material.name:
-        #        material_to_apply = rt.CoronaPhysicalMtl(preset=14)
-        #        obj.material = material_to_apply
+    for obj_node in rt.objects:
+        if obj_node.material:
+            if 'Glass' in obj_node.material.name:
+                material_to_apply = rt.CoronaPhysicalMtl(preset=14)
+                obj_node.material = material_to_apply
+            else:
+                create_material(obj_node)
 
 
 def loop_camera_renderer():
@@ -375,13 +381,14 @@ def render_structure():
 
 
 if __name__ == '__main__':
+    rt.clearListener()
     json_file = compare_json()
-    config_initial_scene()
-    import_fbx()
-    create_cameras()
-    create_lights()
-    create_environment()
-    delete_dummy_nodes()
-    #create_material()
+    #print(json_file)
+    #config_initial_scene()
+    #import_fbx()
+    #create_cameras()
+    #create_lights()
+    #create_environment()
+    #delete_dummy_nodes()
     #render_structure()
-    #apply_all_materials()
+    apply_all_materials()
