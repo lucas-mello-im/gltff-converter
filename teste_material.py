@@ -10,17 +10,21 @@ json_file_path = r"D:/temp/teste.json"
 
 def get_gltf_file():
     gltf_list = get_gltf_file_list()
-    with open(gltf_list[0], 'r') as gltf_file:
-        dict1 = json.loads(gltf_file.read())
-    return dict1
+    if len(gltf_list) >= 1:
+        with open(gltf_list[0], 'r') as gltf_file:
+            dict1 = json.loads(gltf_file.read())
+        return dict1
+    else:
+        print('Não há arquivos na cena')
 
 
 def get_gltf_file_list():
     gltf_list = []
     folder_list = os.listdir(folder_path)
     for file in folder_list:
-        if file.split('.')[1] == 'gltf':
-            gltf_list.append(folder_path + '/' + file)
+        if len(file.split('.')) >= 1:
+            if file.split('.')[1] == 'gltf':
+                gltf_list.append(folder_path + '/' + file)
     return gltf_list
 
 
@@ -384,11 +388,11 @@ if __name__ == '__main__':
     rt.clearListener()
     json_file = compare_json()
     #print(json_file)
-    #config_initial_scene()
-    #import_fbx()
-    #create_cameras()
-    #create_lights()
-    #create_environment()
-    #delete_dummy_nodes()
+    config_initial_scene()
+    import_fbx()
+    create_cameras()
+    create_lights()
+    create_environment()
+    delete_dummy_nodes()
     #render_structure()
     apply_all_materials()
