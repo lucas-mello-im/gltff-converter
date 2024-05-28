@@ -2,25 +2,29 @@ import os
 from pymxs import runtime as rt
 import json
 
-
-fbxFilePath = r"C:\Users\lucas.ferreira\Downloads\GLTF\S_BD2_CH2_L01_01_B.fbx"
-folder_path = r"C:\Users\lucas.ferreira\Downloads\Lucas"
+opts = rt.maxOps.mxsCmdLineArgs
+fbxFilePath = r"C:\Users\lucas.ferreira\Downloads\Lucas\S_BD2_CH2_L01_01_A.fbx"
+folder_path = r"C:\Users\lucas.ferreira\Downloads\Lucas"#opts['file_path']
 json_file_path = r"D:/temp/teste.json"
 
 
 def get_gltf_file():
     gltf_list = get_gltf_file_list()
-    with open(gltf_list[0], 'r') as gltf_file:
-        dict1 = json.loads(gltf_file.read())
-    return dict1
+    if len(gltf_list) >= 1:
+        with open(gltf_list[0], 'r') as gltf_file:
+            dict1 = json.loads(gltf_file.read())
+        return dict1
+    else:
+        print('Não há arquivos na cena')
 
 
 def get_gltf_file_list():
     gltf_list = []
     folder_list = os.listdir(folder_path)
     for file in folder_list:
-        if file.split('.')[1] == 'gltf':
-            gltf_list.append(folder_path + '/' + file)
+        if len(file.split('.')) > 1:
+            if file.split('.')[1] == 'gltf':
+                gltf_list.append(folder_path + '/' + file)
     return gltf_list
 
 
@@ -33,7 +37,7 @@ def get_texture_dict(dict):
 
 def set_material_textures(node_type_list, dict):
     texture_dict = get_texture_dict(dict)
-    to_delete_list = ['accessors', 'buffers', 'bufferViews', 'nodes', 'samplers']
+    to_delete_list = ['accessors', 'buffers', 'bufferViews', 'samplers']
     texture_dict_ = create_material_dict(dict)
     for object_to_delete in to_delete_list:
         dict.pop(object_to_delete)
@@ -90,8 +94,6 @@ def compare_json():
     main_scene_assets = {}
     main_material_name_list = []
 
-    teste_num_mat = str(len(main_json['materials']))
-
     for asset in main_json['meshes']:
         main_scene_assets[asset['name']] = asset['primitives'][0]['material']
 
@@ -106,16 +108,25 @@ def compare_json():
             # Adiciona a variação de material ao Mesh
             if gltf_file['scenes'][0]['name'] != main_scene_name:
                 for node in gltf_file['meshes']:
-                    if node['name'] in main_scene_assets.keys():
-                        if node['primitives'][0]['material'] != main_scene_assets[node['name']]:
-                            for asset_node in main_json['meshes']:
-                                if node['name'] == asset_node['name']:
-                                    asset_node['primitives'][0]['materia2'] = node['primitives'][0]['material']
+                    if node['name'] in main_scene_assets.keys() and node['primitives'][0]['material'] != main_scene_assets[node['name']]:
+                        for asset_node in main_json['meshes']:
+                            if node['name'] == asset_node['name']:
+                                material_parent = asset_node['primitives'][0]['material']
+                                asset_node['primitives'][0]['material'] = [material_parent]
+                                asset_node['primitives'][0]['material'].append(node['primitives'][0]['material'])
 
             # Adiciona os novos materiais ao json principal
             for material in gltf_file['materials']:
                 if material['name'] not in main_material_name_list:
                     main_json['materials'].append(material)
+
+    return main_json
+
+
+def change_node_names(main_json):
+    for node in main_json['nodes']:
+        if 'mesh' in node:
+            main_json['meshes'][node['mesh']]['name'] = node['name']
 
 
 def dumps_json_dict():
@@ -159,7 +170,7 @@ def delete_dummy_nodes():
     to_delete = []
     for node in rt.objects:
         # Cria uma lista com os nodes a serem excluídos
-        if rt.classOf(node) == rt.Dummy:
+        if rt.classOf(node) == rt.Dummy or rt.classOf(node) == rt.Freecamera:
             to_delete.append(node)
     # Itera na lista e exclui os nodes selecionados
     for delete_node in to_delete:
@@ -219,6 +230,7 @@ def create_lights():
         elif rt.classOf(obj) == rt.Directionallight:
             rt.delete(obj)
 
+
 def copy_uv_channel(obj, channel_from, channel_to):
     rt.convertToPoly(obj)
 
@@ -238,96 +250,130 @@ def copy_uv_channel(obj, channel_from, channel_to):
     for face in range(1, num_map_faces_to + 1):
         rt.polyop.setMapFace(obj, channel_to, face, rt.polyop.getMapFace(obj, channel_from, face))
 
-    print(f"UV mudada para ID 1 para o objeto {obj.name}")
+
+def add_multi_mtl_mod(object_node):
+    mtl_id_mod = rt.materialModifier(materialID=1, name='IMxr MtlID Modifier')
+    rt.addModifier(object_node, mtl_id_mod)
 
 
-def create_material():
+def get_material_name_list(obj_node):
+    material_name_list = []
+    for node in json_file['meshes']:
+        if node['name'] == obj_node.name:
+            if isinstance(node['primitives'][0]['material'], str):
+                material_name_list.append(node['primitives'][0]['material'])
+            else:
+                for material in node['primitives'][0]['material']:
+                    material_name_list.append(material)
+    print(material_name_list)
+    return material_name_list
+
+
+def create_material(obj_node):
+    material_node = None
+    material_name_list = get_material_name_list(obj_node)
+    is_vertex_color = False
+    material_id_list = []
+
     for mtl in json_file['materials']:
-        material_node = rt.CoronaPhysicalMtl()
-        material_node.name = mtl['name']
-        is_vertex_color = False
 
-        if 'pbrMetallicRoughness' in mtl:
-            # Diffuse settings
-            if 'baseColorTexture' in mtl['pbrMetallicRoughness']:
-                diffuse_texture_path = folder_path + '/' + mtl['pbrMetallicRoughness']['baseColorTexture']['index']
-                diffuse_color_texture = rt.Bitmaptexture(fileName=diffuse_texture_path)
-                material_node.baseTexmap = diffuse_color_texture
+        if mtl['name'] in material_name_list:
+            material_node = rt.CoronaPhysicalMtl()
+            material_node.name = mtl['name']
+            is_vertex_color = False
+
+            if 'pbrMetallicRoughness' in mtl:
+                # Diffuse settings
+                if 'baseColorTexture' in mtl['pbrMetallicRoughness']:
+                    diffuse_texture_path = folder_path + '/' + mtl['pbrMetallicRoughness']['baseColorTexture']['index']
+                    diffuse_color_texture = rt.Bitmaptexture(fileName=diffuse_texture_path)
+                    material_node.baseTexmap = diffuse_color_texture
+
+                    # UV ID Setting
+                    if 'texCoord' in mtl['pbrMetallicRoughness']['baseColorTexture']:
+                        if mtl['pbrMetallicRoughness']['baseColorTexture']['texCoord'] == 1:
+                            is_vertex_color = True
+
+                elif 'baseColorFactor' in mtl['pbrMetallicRoughness']:
+                    diffuse_color_factor = mtl['pbrMetallicRoughness']['baseColorFactor']
+                    material_node.colorDiffuse = rt.Color(diffuse_color_factor[0], diffuse_color_factor[1], diffuse_color_factor[2])
+
+                # Metallic Settings
+                if 'metallicRoughnessTexture' in mtl['pbrMetallicRoughness']:
+                    metallic_roughness_texture_path = folder_path + '/' + mtl['pbrMetallicRoughness']['metallicRoughnessTexture']['index']
+                    metallic_roughness_texture = rt.Bitmaptexture(fileName=metallic_roughness_texture_path)
+
+                    # Roughness Map
+                    material_node.baseRoughnessTexmap = create_cc_node(metallic_roughness_texture, 'G')
+
+                    # Metalness Map
+                    material_node.metalnessTexmap = create_cc_node(metallic_roughness_texture, 'R')
+
+                    # UV ID Setting
+                    if 'texCoord' in mtl['pbrMetallicRoughness']['metallicRoughnessTexture']:
+                        if mtl['pbrMetallicRoughness']['metallicRoughnessTexture']['texCoord'] == 1:
+                            is_vertex_color = True
+
+                if 'metallicFactor' in mtl['pbrMetallicRoughness']:
+                    material_node.metalnessMode = mtl['pbrMetallicRoughness']['metallicFactor']
+
+                # Roughness Settings
+                if 'roughnessFactor' in mtl['pbrMetallicRoughness']:
+                    material_node.baseRoughnessMapAmount = mtl['pbrMetallicRoughness']['roughnessFactor']
+                    material_node.baseRoughness = mtl['pbrMetallicRoughness']['roughnessFactor']
+
+            # Normal Settings
+            if 'normalTexture' in mtl:
+                normal_map_texture_path = folder_path + '/' + mtl['normalTexture']['index']
+                normal_map_texture = rt.Bitmaptexture(fileName=normal_map_texture_path)
+                normal_node = rt.CoronaNormal(normalMap=normal_map_texture)
+                normal_node.multiplier = 1
+                round_edges_node = rt.CoronaRoundEdges(mapAdditionalBump=normal_node, radius=0.02)
+                material_node.baseBumpTexmap = round_edges_node
 
                 # UV ID Setting
-                if 'texCoord' in mtl['pbrMetallicRoughness']['baseColorTexture']:
-                    if mtl['pbrMetallicRoughness']['baseColorTexture']['texCoord'] == 1:
+                if 'texCoord' in mtl['normalTexture']:
+                    if mtl['normalTexture']['texCoord'] == 1:
                         is_vertex_color = True
 
-            elif 'baseColorFactor' in mtl['pbrMetallicRoughness']:
-                diffuse_color_factor = mtl['pbrMetallicRoughness']['baseColorFactor']
-                material_node.colorDiffuse = rt.Color(diffuse_color_factor[0], diffuse_color_factor[1], diffuse_color_factor[2])
+            # Emissive Settings
+            if 'emissiveTexture' in mtl:
+                emissive_texture_path = folder_path + '/' + mtl['emissiveTexture']['index']
+                emissive_texture = rt.Bitmaptexture(fileName=emissive_texture_path)
+                material_node.selfIllumTexmap = emissive_texture
 
-            # Metallic Settings
-            if 'metallicRoughnessTexture' in mtl['pbrMetallicRoughness']:
-                metallic_roughness_texture_path = folder_path + '/' + mtl['pbrMetallicRoughness']['metallicRoughnessTexture']['index']
-                metallic_roughness_texture = rt.Bitmaptexture(fileName=metallic_roughness_texture_path)
+            if 'emissiveFactor' in mtl:
+                material_node.selfIllumLevel = mtl['emissiveFactor'][0]
 
-                # Roughness Map
-                material_node.baseRoughnessTexmap = create_cc_node(metallic_roughness_texture, 'G')
+            if is_vertex_color:
+                copy_uv_channel(obj_node, 2, 1)
+            material_id_list.append(material_node)
 
-                # Metalness Map
-                material_node.metalnessTexmap = create_cc_node(metallic_roughness_texture, 'R')
+    if material_id_list:
+        if len(material_name_list) > 1:
+            add_multi_mtl_mod(obj_node)
+            obj_node.material = rt.multiSubMaterial(materialList=material_id_list)
 
-                # UV ID Setting
-                if 'texCoord' in mtl['pbrMetallicRoughness']['metallicRoughnessTexture']:
-                    if mtl['pbrMetallicRoughness']['metallicRoughnessTexture']['texCoord'] == 1:
-                        is_vertex_color = True
-
-            if 'metallicFactor' in mtl['pbrMetallicRoughness']:
-                material_node.metalnessMode = mtl['pbrMetallicRoughness']['metallicFactor']
-
-            # Roughness Settings
-            if 'roughnessFactor' in mtl['pbrMetallicRoughness']:
-                material_node.baseRoughnessMapAmount = mtl['pbrMetallicRoughness']['roughnessFactor']
-                material_node.baseRoughness = mtl['pbrMetallicRoughness']['roughnessFactor']
-
-        # Normal Settings
-        if 'normalTexture' in mtl:
-            normal_map_texture_path = folder_path + '/' + mtl['normalTexture']['index']
-            normal_map_texture = rt.Bitmaptexture(fileName=normal_map_texture_path)
-            normal_node = rt.CoronaNormal(normalMap=normal_map_texture)
-            normal_node.multiplier = 1
-            round_edges_node = rt.CoronaRoundEdges(mapAdditionalBump=normal_node, radius=0.02)
-            material_node.baseBumpTexmap = round_edges_node
-
-            # UV ID Setting
-            if 'texCoord' in mtl['normalTexture']:
-                if mtl['normalTexture']['texCoord'] == 1:
-                    is_vertex_color = True
-
-        # Emissive Settings
-        if 'emissiveTexture' in mtl:
-            emissive_texture_path = folder_path + '/' + mtl['emissiveTexture']['index']
-            emissive_texture = rt.Bitmaptexture(fileName=emissive_texture_path)
-            material_node.selfIllumTexmap = emissive_texture
-
-        if 'emissiveFactor' in mtl:
-            material_node.selfIllumLevel = mtl['emissiveFactor'][0]
-
-        # Double Sided Mtl
-        if 'doubleSided' in mtl:
-            is_double_sided = mtl['doubleSided']
-
-        for obj in rt.objects:
-            if obj.material:
-                if 'Glass' in obj.material.name:
-                    material_to_apply = rt.CoronaPhysicalMtl(preset=14)
-                    obj.material = material_to_apply
-                elif obj.material.name == mtl['name']:
-                    obj.material = material_node
-                    if is_vertex_color:
-                        copy_uv_channel(obj, 2, 1)
+            print('Material aplicado para: ' + material_node.name)
+        else:
+            obj_node.material = material_id_list[0]
+            print('Material aplicado para: ' + material_node.name)
 
 
-        print(mtl['name'])
-        print(mtl)
-        print('---------------------')
+def apply_all_materials():
+    for obj_node in rt.objects:
+        if obj_node.material:
+            if 'Glass' in obj_node.material.name:
+                material_to_apply = rt.CoronaPhysicalMtl(preset=14)
+                obj_node.material = material_to_apply
+            else:
+                create_material(obj_node)
+
+
+def loop_camera_renderer():
+    for cam in rt.objects:
+        if rt.classOf(cam) == rt.CoronaCam:
+            print(cam)
 
 
 def render_structure():
@@ -335,18 +381,22 @@ def render_structure():
         if 'BD2_CH2' not in obj.name:
             if rt.classOf(obj) == rt.Editable_mesh or rt.classOf(obj) == rt.Editable_Poly:
                 rt.hide(obj)
-
+    for obj in rt.objects:
+        rt.unhide(obj)
 
 
 if __name__ == '__main__':
+    rt.clearListener()
+    json_file = set_material_textures(get_node_type_list(get_gltf_file()), get_gltf_file())
+    if len(get_gltf_file_list()) > 1:
+        json_file = compare_json()
+    change_node_names(json_file)
     config_initial_scene()
     import_fbx()
-    json_file = json.loads(dumps_json_dict())
     create_cameras()
     create_lights()
     create_environment()
-    compare_json()
     delete_dummy_nodes()
-    create_material()
     #render_structure()
-
+    apply_all_materials()
+    rt.archiveMaxFile(rf"\\IMDNas\IMDNAS\IMDNAS\IMDArchive\GLTF_CONVERTER\Done/{json_file['scenes'][0]['name']}", quiet=True)
