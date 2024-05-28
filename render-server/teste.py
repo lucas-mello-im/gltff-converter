@@ -1,9 +1,7 @@
 import os
 from pymxs import runtime as rt
-import json, sys
+import sys
 
 
 fbxFilePath = sys.argv[0]
-
-print(fbxFilePath)
-
+print('teste: ' + fbxFilePath)

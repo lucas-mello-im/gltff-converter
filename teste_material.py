@@ -2,9 +2,9 @@ import os
 from pymxs import runtime as rt
 import json
 
-
+opts = rt.maxOps.mxsCmdLineArgs
 fbxFilePath = r"C:\Users\lucas.ferreira\Downloads\Lucas\S_BD2_CH2_L01_01_A.fbx"
-folder_path = r"C:\Users\lucas.ferreira\Downloads\Lucas"
+folder_path = r"C:\Users\lucas.ferreira\Downloads\Lucas"#opts['file_path']
 json_file_path = r"D:/temp/teste.json"
 
 
@@ -22,7 +22,7 @@ def get_gltf_file_list():
     gltf_list = []
     folder_list = os.listdir(folder_path)
     for file in folder_list:
-        if len(file.split('.')) >= 1:
+        if len(file.split('.')) > 1:
             if file.split('.')[1] == 'gltf':
                 gltf_list.append(folder_path + '/' + file)
     return gltf_list
@@ -120,12 +120,13 @@ def compare_json():
                 if material['name'] not in main_material_name_list:
                     main_json['materials'].append(material)
 
-    # Transform mesh names
+    return main_json
+
+
+def change_node_names(main_json):
     for node in main_json['nodes']:
         if 'mesh' in node:
             main_json['meshes'][node['mesh']]['name'] = node['name']
-
-    return main_json
 
 
 def dumps_json_dict():
@@ -386,8 +387,10 @@ def render_structure():
 
 if __name__ == '__main__':
     rt.clearListener()
-    json_file = compare_json()
-    #print(json_file)
+    json_file = set_material_textures(get_node_type_list(get_gltf_file()), get_gltf_file())
+    if len(get_gltf_file_list()) > 1:
+        json_file = compare_json()
+    change_node_names(json_file)
     config_initial_scene()
     import_fbx()
     create_cameras()
@@ -396,3 +399,4 @@ if __name__ == '__main__':
     delete_dummy_nodes()
     #render_structure()
     apply_all_materials()
+    rt.archiveMaxFile(rf"\\IMDNas\IMDNAS\IMDNAS\IMDArchive\GLTF_CONVERTER\Done/{json_file['scenes'][0]['name']}", quiet=True)
