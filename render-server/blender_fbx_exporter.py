@@ -7,6 +7,8 @@ def save_fbx_file(gltf_path):
     fbx_file_name = gltf_path.split('\\')[len(gltf_path.split('\\')) - 1]
     file_path = '/'.join(export_path_list) + '/' + fbx_file_name.split('.')[0] + '.fbx'
 
+    print(file_path)
+
     bpy.ops.object.select_all(action='SELECT')
     bpy.ops.export_scene.fbx(filepath=file_path, embed_textures=True)
 
