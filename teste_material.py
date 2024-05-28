@@ -3,8 +3,7 @@ from pymxs import runtime as rt
 import json
 
 opts = rt.maxOps.mxsCmdLineArgs
-fbxFilePath = r"C:\Users\lucas.ferreira\Downloads\Lucas\S_BD2_CH2_L01_01_A.fbx"
-folder_path = r"C:\Users\lucas.ferreira\Downloads\Lucas"#opts['file_path']
+folder_path = r"\\IMDNas\IMDNAS\IMDNAS\IMDArchive\GLTF_CONVERTER\ToDo\S_BD2_CH2_L01_01_A"#opts['file_path']
 json_file_path = r"D:/temp/teste.json"
 
 
