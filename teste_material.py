@@ -156,6 +156,8 @@ def config_initial_scene():
 def create_environment():
     hdri_sky = rt.CoronaSky(cloudsEnable=True, intensityMultiplier=1)
     rt.environmentMap = hdri_sky
+    
+    # Config BG Override
     cc_node = rt.CoronaColorCorrect(exposure=-3.177, gamma=0.81)
     cc_node.inputTexmap = hdri_sky
     rt.renderers.current.bg_texmapUseDirect = True
@@ -167,7 +169,7 @@ def create_environment():
     rt.renderers.current.bg_texmapDirect = cc_node
     rt.renderers.current.bg_texmapReflect = cc_node
     rt.renderers.current.bg_texmapRefract = cc_node
-  
+
     IMXR_sun = rt.CoronaSun(name="IMXRSun", on=True, sizeMultiplier=5, intensity=0.56, shadowsFromClouds=True, textured=True)
     IMXR_sun.targeted = True
     IMXR_sun.pos = rt.Point3(-410.894, 881.947, 745.899)
