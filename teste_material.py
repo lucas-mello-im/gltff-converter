@@ -152,6 +152,21 @@ def config_initial_scene():
     rt.renderWidth = 1000
     rt.rendImageAspectRatio = 1
 
+    # Cria o render element para AO
+    create_render_elements()
+
+
+def create_render_elements():
+    corona_ao = rt.CoronaAO()
+    corona_ao.colorSpread = -0.5
+    corona_ao.quality = 32
+
+    re = rt.maxOps.GetCurRenderElementMgr()
+    re.addrenderelement(rt.CTexmap, elementname="IMXR_CTexmap")
+    render_element = re.getRenderElement(0)
+    render_element.enabled = True
+    render_element.textmap = corona_ao
+
 
 def create_environment():
     hdri_sky = rt.CoronaSky(cloudsEnable=True, intensityMultiplier=1)
