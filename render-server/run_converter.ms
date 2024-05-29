@@ -1,1 +1,1 @@
-python.ExecuteFile @"C:\Users\lucas.ferreira\Documents\GitHub\gltf-converter\teste_material.py"
+python.ExecuteFile @"\\IMDNas\IMDNAS\IMDNAS\IMDArchive\GLTF_CONVERTER\gltff-converter\teste_material.py"

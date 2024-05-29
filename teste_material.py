@@ -1,6 +1,6 @@
 import os
 from pymxs import runtime as rt
-import json
+import json, subprocess, time
 
 opts = rt.maxOps.mxsCmdLineArgs
 folder_path = r"\\IMDNas\IMDNAS\IMDNAS\IMDArchive\GLTF_CONVERTER\ToDo\S_BD2_CH2_L01_01_A"#opts['file_path']
@@ -149,20 +149,37 @@ def config_initial_scene():
 
     # Change Apect Ratio
     rt.rendLockImageAspectRatio = True
-    rt.renderWidth = 500
+    rt.renderWidth = 1000
     rt.rendImageAspectRatio = 1
 
 
 def create_environment():
-    hdri_sky = rt.CoronaSky(cloudsEnable=True, intensityMultiplier=0.1)
+    hdri_sky = rt.CoronaSky(cloudsEnable=True, intensityMultiplier=1)
     rt.environmentMap = hdri_sky
-    IMXR_sun = rt.CoronaSun(name="IMXRSun", on=True, sizeMultiplier=7, intensity=0.05, shadowsFromClouds=True, textured=True)
+    cc_node = rt.CoronaColorCorrect(exposure=-3.177, gamma=0.81)
+    cc_node.inputTexmap = hdri_sky
+    rt.renderers.current.bg_texmapUseDirect = True
+    rt.renderers.current.bg_texmapUseReflect = True
+    rt.renderers.current.bg_texmapUseRefract = True
+    rt.renderers.current.bg_overrideRefract = True
+    rt.renderers.current.bg_overrideDirect = True
+    rt.renderers.current.bg_overrideReflect = True
+    rt.renderers.current.bg_texmapDirect = cc_node
+    rt.renderers.current.bg_texmapReflect = cc_node
+    rt.renderers.current.bg_texmapRefract = cc_node
+  
+    IMXR_sun = rt.CoronaSun(name="IMXRSun", on=True, sizeMultiplier=5, intensity=0.56, shadowsFromClouds=True, textured=True)
     IMXR_sun.targeted = True
-    IMXR_sun.pos = rt.Point3(900, 900, 500)
+    IMXR_sun.pos = rt.Point3(-410.894, 881.947, 745.899)
+    IMXR_sun.target.pos = rt.Point3(-138.526, 142.186, 0)
+  
 
 
-def import_fbx():
-    rt.importFile(fbxFilePath, rt.name('noPrompt'))
+def import_fbx(file_path):
+    if os.path.isfile(file_path):
+        rt.importFile(file_path, rt.name('noPrompt'))
+    else:
+        print("Nao deu")
 
 
 def delete_dummy_nodes():
@@ -377,25 +394,48 @@ def loop_camera_renderer():
 
 def render_structure():
     for obj in rt.objects:
-        if 'BD2_CH2' not in obj.name:
+        if 'SM_BD1_DFT' not in obj.name:
             if rt.classOf(obj) == rt.Editable_mesh or rt.classOf(obj) == rt.Editable_Poly:
                 rt.hide(obj)
     for obj in rt.objects:
         rt.unhide(obj)
 
 
+def get_file(main_dir):
+    gltf_path = main_dir + '/' + main_dir.split('\\')[-1] + '.gltf'
+    if os.path.isfile(gltf_path):
+        print('Starting process for: ' + gltf_path)
+        return gltf_path
+    else:
+        print('Without GLTF file in folder: ' + gltf_path)
+        return None
+
+
+def export_fbx_file_blender(main_dir):
+    blender_path = r"C:\Program Files\Blender Foundation\Blender 4.1\blender.exe"
+    # Caminho paliativo por conta do subprocess, fazer com os.path.abspath
+    blender_export_script = r"\\IMDNas\IMDNAS\IMDNAS\IMDArchive\GLTF_CONVERTER\gltff-converter\render-server\blender_fbx_exporter.py" #os.path.abspath('/render-server/blender_fbx_exporter.py')
+    gltf_path = get_file(main_dir)
+    if gltf_path:
+        print('Opening Blender to convert: ' + gltf_path)
+        subprocess.run([blender_path, '-b', '-P', blender_export_script, '--', gltf_path])
+    else:
+        print('Nothing to process')
+
+
 if __name__ == '__main__':
     rt.clearListener()
-    json_file = set_material_textures(get_node_type_list(get_gltf_file()), get_gltf_file())
+    json_file = set_material_textures(get_node_type_list(get_gltf_file()), get_gltf_file())    
     if len(get_gltf_file_list()) > 1:
         json_file = compare_json()
     change_node_names(json_file)
+    export_fbx_file_blender(folder_path)
     config_initial_scene()
-    import_fbx()
+    import_fbx(rf"\\IMDNas\IMDNAS\IMDNAS\IMDArchive\GLTF_CONVERTER\ToDo/{json_file['scenes'][0]['name']}/{json_file['scenes'][0]['name']}.fbx")
     create_cameras()
     create_lights()
     create_environment()
     delete_dummy_nodes()
-    #render_structure()
     apply_all_materials()
     rt.archiveMaxFile(rf"\\IMDNas\IMDNAS\IMDNAS\IMDArchive\GLTF_CONVERTER\Done/{json_file['scenes'][0]['name']}", quiet=True)
+    render_structure()
