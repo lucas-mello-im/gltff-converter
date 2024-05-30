@@ -161,13 +161,11 @@ def create_render_elements():
     corona_ao.colorSpread = -0.5
     corona_ao.quality = 32
     corona_ao.maxDistance = [100,100,100]
-
+    
     re = rt.maxOps.GetCurRenderElementMgr()
-    re.addrenderelement(rt.CTexmap(elementname='IMXR_AO', texture=corona_ao))
+    re.addrenderelement(rt.CTexmap(elementname='IMXR_AO'))
     render_element = re.getRenderElement(0)
-    rt.showProperties(render_element)
-    render_element.enabled = True
-    render_element.texture = corona_ao
+    render_element.texmap = corona_ao
 
 
 def create_environment():
@@ -192,7 +190,6 @@ def create_environment():
     IMXR_sun.pos = rt.Point3(-410.894, 881.947, 745.899)
     IMXR_sun.target.pos = rt.Point3(-138.526, 142.186, 0)
   
-
 
 def import_fbx(file_path):
     if os.path.isfile(file_path):
@@ -443,18 +440,18 @@ def export_fbx_file_blender(main_dir):
 
 
 if __name__ == '__main__':
-    #rt.clearListener()
-    #json_file = set_material_textures(get_node_type_list(get_gltf_file()), get_gltf_file())    
-    #if len(get_gltf_file_list()) > 1:
-    #    json_file = compare_json()
-    #change_node_names(json_file)
-    #export_fbx_file_blender(folder_path)
+    rt.clearListener()
+    json_file = set_material_textures(get_node_type_list(get_gltf_file()), get_gltf_file())    
+    if len(get_gltf_file_list()) > 1:
+        json_file = compare_json()
+    change_node_names(json_file)
+    export_fbx_file_blender(folder_path)
     config_initial_scene()
-    #import_fbx(rf"\\IMDNas\IMDNAS\IMDNAS\IMDArchive\GLTF_CONVERTER\ToDo/{json_file['scenes'][0]['name']}/{json_file['scenes'][0]['name']}.fbx")
-    #create_cameras()
-    #create_lights()
-    #create_environment()
-    #delete_dummy_nodes()
-    #apply_all_materials()
-    #rt.archiveMaxFile(rf"\\IMDNas\IMDNAS\IMDNAS\IMDArchive\GLTF_CONVERTER\Done/{json_file['scenes'][0]['name']}", quiet=True)
+    import_fbx(rf"\\IMDNas\IMDNAS\IMDNAS\IMDArchive\GLTF_CONVERTER\ToDo/{json_file['scenes'][0]['name']}/{json_file['scenes'][0]['name']}.fbx")
+    create_cameras()
+    create_lights()
+    create_environment()
+    delete_dummy_nodes()
+    apply_all_materials()
+    rt.archiveMaxFile(rf"\\IMDNas\IMDNAS\IMDNAS\IMDArchive\GLTF_CONVERTER\Done/{json_file['scenes'][0]['name']}", quiet=True)
     #render_structure()
