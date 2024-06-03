@@ -185,7 +185,7 @@ def create_environment():
     rt.renderers.current.bg_texmapReflect = cc_node
     rt.renderers.current.bg_texmapRefract = cc_node
 
-    IMXR_sun = rt.CoronaSun(name="IMXRSun", on=True, sizeMultiplier=5, intensity=0.56, shadowsFromClouds=True, textured=True)
+    IMXR_sun = rt.CoronaSun(name="IMXRSun", on=True, sizeMultiplier=5, intensity=0.1, shadowsFromClouds=True, textured=True)
     IMXR_sun.targeted = True
     IMXR_sun.pos = rt.Point3(-410.894, 881.947, 745.899)
     IMXR_sun.target.pos = rt.Point3(-138.526, 142.186, 0)
